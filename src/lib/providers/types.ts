@@ -19,6 +19,8 @@ export interface TextRequest {
   model: string;
   /** Ask for a JSON object response where the provider supports it. */
   json: boolean;
+  /** JSON Schema of the expected output, for providers that can enforce it natively. */
+  jsonSchema?: Record<string, unknown>;
   temperature?: number;
   timeoutMs: number;
   /**

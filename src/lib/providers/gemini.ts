@@ -27,8 +27,25 @@ export class GeminiProvider implements LLMProvider {
     return { provider: "gemini", model, label: `Google Gemini · ${model}`, isMock: false };
   }
 
+  /** Set after Gemini rejects a native schema once; later calls use plain JSON mode (schema stays in the prompt). */
+  private nativeSchemaDisabled = false;
+
   async generateText(req: TextRequest): Promise<TextResponse> {
     if (!this.apiKey) throw new ProviderError("NO_API_KEY", "GEMINI_API_KEY is not set.");
+    const useSchema = Boolean(req.json && req.jsonSchema && !this.nativeSchemaDisabled);
+    try {
+      return await this.call(req, useSchema, this.apiKey);
+    } catch (e) {
+      // Gemini accepts only a subset of JSON Schema. If it rejects ours, retry once without it.
+      if (useSchema && e instanceof ProviderError && e.code === "PROVIDER_ERROR" && /HTTP 400/.test(e.message)) {
+        this.nativeSchemaDisabled = true;
+        return this.call(req, false, this.apiKey);
+      }
+      throw e;
+    }
+  }
+
+  private async call(req: TextRequest, useSchema: boolean, apiKey: string): Promise<TextResponse> {
     const url = `${BASE}/models/${encodeURIComponent(req.model)}:generateContent`;
     const body = {
       systemInstruction: { parts: [{ text: req.system }] },
@@ -36,13 +53,14 @@ export class GeminiProvider implements LLMProvider {
       generationConfig: {
         temperature: req.temperature ?? 0.2,
         ...(req.json ? { responseMimeType: "application/json" } : {}),
+        ...(useSchema ? { responseJsonSchema: toGeminiSchema(req.jsonSchema!) } : {}),
       },
     };
     const res = await fetchWithTimeout(
       url,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": this.apiKey },
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body: JSON.stringify(body),
       },
       req.timeoutMs,
@@ -90,6 +108,13 @@ export class GeminiProvider implements LLMProvider {
       return { ...base, ok: false, configured: true, message: `${err.code ?? "ERROR"}: ${err.message}` };
     }
   }
+}
+
+/** Drop JSON Schema meta keys Gemini does not need. */
+export function toGeminiSchema(schema: Record<string, unknown>): Record<string, unknown> {
+  const { $schema: _s, ...rest } = schema;
+  void _s;
+  return rest;
 }
 
 interface GeminiResponse {

@@ -13,6 +13,7 @@ const req = { agentId: "discovery" as const, system: "s", prompt: "p", model: "m
 
 describe("provider configuration", () => {
   it("defaults to mock and never exposes keys", () => {
+    expect(readProviderConfig({ LLM_PROVIDER: "gemini" }).model).toBe("gemini-flash-latest");
     expect(readProviderConfig({}).provider).toBe("mock");
     const s = publicProviderStatus({ LLM_PROVIDER: "gemini", GEMINI_API_KEY: "secret-key-123" });
     expect(JSON.stringify(s)).not.toContain("secret-key-123");
@@ -59,6 +60,35 @@ describe("Gemini adapter (mocked HTTP)", () => {
   ])("maps HTTP %i to %s", async (status, body, code) => {
     const p = new GeminiProvider("KEY", "m", {}, (async () => res(status, body)) as unknown as typeof fetch);
     await expect(p.generateText(req)).rejects.toMatchObject({ code });
+  });
+
+  it("sends the output JSON Schema natively (without $schema) when provided", async () => {
+    const f = vi.fn(async (_u: string, _init?: RequestInit) => res(200, { candidates: [{ content: { parts: [{ text: "{}" }] } }] }));
+    const p = new GeminiProvider("KEY", "m", {}, f as unknown as typeof fetch);
+    await p.generateText({ ...req, jsonSchema: { $schema: "https://json-schema.org/draft/2020-12/schema", type: "object" } });
+    const cfg = JSON.parse(f.mock.calls[0][1]!.body as string).generationConfig;
+    expect(cfg.responseJsonSchema).toEqual({ type: "object" });
+    expect(cfg.responseMimeType).toBe("application/json");
+  });
+
+  it("falls back to plain JSON mode once if Gemini rejects the schema, and remembers", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const f = vi.fn(async (_u: string, init?: RequestInit) => {
+      const b = JSON.parse(init!.body as string);
+      bodies.push(b);
+      return b.generationConfig.responseJsonSchema
+        ? res(400, { error: { message: "Invalid JSON payload: unknown keyword" } })
+        : res(200, { candidates: [{ content: { parts: [{ text: '{"ok":true}' }] } }] });
+    });
+    const p = new GeminiProvider("KEY", "m", {}, f as unknown as typeof fetch);
+    expect((await p.generateText({ ...req, jsonSchema: { type: "object" } })).text).toBe('{"ok":true}');
+    await p.generateText({ ...req, jsonSchema: { type: "object" } });
+    expect(f).toHaveBeenCalledTimes(3); // reject, fallback, then fallback directly
+  });
+
+  it("does not hide an invalid key behind the schema fallback", async () => {
+    const p = new GeminiProvider("KEY", "m", {}, (async () => res(400, { error: { message: "API key not valid." } })) as unknown as typeof fetch);
+    await expect(p.generateText({ ...req, jsonSchema: { type: "object" } })).rejects.toMatchObject({ code: "INVALID_API_KEY" });
   });
 
   it("reports missing key and safety blocks", async () => {

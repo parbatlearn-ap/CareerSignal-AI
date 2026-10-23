@@ -48,7 +48,7 @@ The repository was empty at the start (no commits, no files). Everything below w
 - ✅ P1 Career DNA Map, Current vs Target visual, resume/LinkedIn consistency flags, 30-day calendar + action plan, version comparison
 
 ### Deferred / next tasks (in recommended order)
-1. **Validate the Gemini and Groq adapters against the live APIs** with real keys. Confirm current model ids, JSON-mode behaviour and quota error bodies, and adjust `mapHttpError` if needed.
+1. **Validate Gemini live (chosen as the first provider).** Ready to run: `npm run gemini:check`, native `responseJsonSchema` with automatic fallback, default model `gemini-flash-latest`. Still needed: one successful run with a real key, confirming the schema is accepted, quota error bodies and output quality versus mock mode. Groq stays second.
 2. **Usability test with 10–20 target users** (PRD Phase 3). Review outputs manually and tune taxonomy, prompts and scoring weights from observed failures.
 3. **Stronger rule-based extraction** for unusual resume layouts (mock mode relies on dated role headers and bullet lists).
 4. **Authentication + hosted PostgreSQL/Supabase** before any multi-user deployment: implement `WorkspaceRepository` for Postgres, replace the owner cookie with real auth, and add retention jobs.

@@ -8,9 +8,13 @@ import { GroqProvider } from "./groq";
 import { MockProvider } from "./mock";
 import type { LLMProvider, ProviderId } from "./types";
 
-/** Single place for default model ids. They go stale - override via env. */
+/**
+ * Single place for default model ids. They go stale - override via env.
+ * Gemini uses Google's moving "latest" alias: pinned 2.x ids are restricted or
+ * shut down for new projects (as of Oct 2026). Pin GEMINI_MODEL for stability.
+ */
 export const DEFAULT_MODELS: Record<Exclude<ProviderId, "mock">, string> = {
-  gemini: "gemini-2.5-flash",
+  gemini: "gemini-flash-latest",
   groq: "llama-3.3-70b-versatile",
 };
 

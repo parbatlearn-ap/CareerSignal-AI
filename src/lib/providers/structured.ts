@@ -45,7 +45,8 @@ export async function generateStructuredOutput<S extends z.ZodType>(
     timeoutMs: number;
   },
 ): Promise<StructuredResult<z.infer<S>>> {
-  const jsonSchema = JSON.stringify(z.toJSONSchema(opts.schema, { unrepresentable: "any" }));
+  const schemaObject = z.toJSONSchema(opts.schema, { unrepresentable: "any" }) as Record<string, unknown>;
+  const jsonSchema = JSON.stringify(schemaObject);
   const prompt = `${opts.prompt}\n\nReturn ONLY one JSON object that matches this JSON Schema exactly (no prose, no markdown):\n${jsonSchema}`;
   const model = provider.modelFor(opts.agentId);
   let usage: Usage | null = null;
@@ -63,6 +64,7 @@ export async function generateStructuredOutput<S extends z.ZodType>(
       prompt: p,
       model,
       json: true,
+      jsonSchema: schemaObject,
       timeoutMs: opts.timeoutMs,
       input: opts.input,
     });

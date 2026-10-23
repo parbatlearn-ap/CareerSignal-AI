@@ -35,6 +35,26 @@ Open http://localhost:3000 and choose one of:
 
 In mock mode, every agent runs its deterministic, rule-based implementation over **your real input**. Nothing leaves the server, and the UI labels it "Demo mode · rule-based agents".
 
+## Self-test with Google Gemini (recommended first provider)
+
+Follow these steps on your own computer. Keys never go in chat, email or git.
+
+1. **Get a key.** Go to https://aistudio.google.com/apikey, sign in with a Google account, and click **Create API key**. Copy the key.
+2. **Put it in `.env.local`** (the file you created from `.env.example`, in the project folder). Set these two lines and save:
+   ```
+   LLM_PROVIDER=gemini
+   GEMINI_API_KEY=paste-your-key-here
+   ```
+   Leave `GEMINI_MODEL=gemini-flash-latest` unless step 3 tells you otherwise.
+3. **Check it.** In the project folder, run `npm run gemini:check`. You should see three ✅ lines: key set, model found, valid JSON returned. If you see ❌, the message says what to fix (wrong key, model not available, quota reached). The check also lists the Flash models your key can use. To pin one, copy its name into `GEMINI_MODEL`.
+4. **Restart the app.** Stop `npm run dev` (Ctrl+C) and start it again. The badge at the top of each analysis should now show `gemini · <model>` instead of "Demo mode".
+5. **Give consent per analysis.** Open the analysis → **Privacy** → tick *Allow sending this analysis's … text to the configured external AI provider*. Without it, steps stop with a "consent required" message. Nothing is sent silently.
+6. **Run it.** Click **Run next steps**. Each agent is one Gemini call, so a full run is roughly 10–13 calls including the QA revision cycle. If a step shows a quota or rate-limit error, wait and click **Re-run** on that step; completed steps are kept.
+
+**Privacy warning for your first test:** Google's terms for the *unpaid* Gemini API tier allow Google to use submitted content to improve its products, and human reviewers may read it. Check Google's current terms. For a first test, use the synthetic demo or a resume with your name, contact details and employer names removed.
+
+**What to compare in your self-test:** run the same material once in mock mode and once with Gemini, then compare. Do the positioning options feel specific to you? Are any statements marked "Needs your confirmation" that are actually true? Does QA flag anything Gemini invented? Use the **Rate this section** links so your notes stay attached to that version.
+
 ## Use a real LLM (Google Gemini or Groq)
 
 Edit `.env.local` (server-side only; keys never reach the browser):
@@ -43,7 +63,7 @@ Edit `.env.local` (server-side only; keys never reach the browser):
 # Google Gemini - key from https://aistudio.google.com/apikey
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=your-key
-GEMINI_MODEL=gemini-2.5-flash        # verify the current model id in Google's docs
+GEMINI_MODEL=gemini-flash-latest     # or a pinned id listed by `npm run gemini:check`
 
 # or Groq - key from https://console.groq.com/keys
 LLM_PROVIDER=groq
@@ -62,7 +82,7 @@ Restart the server. Then:
 
 Free tiers have rate and daily limits that change over time. Quota and rate-limit errors are shown on the failed step with a **Re-run** button; saved data is never lost when a step fails.
 
-> **Verification status:** the Gemini and Groq adapters are implemented against their documented REST APIs and tested with mocked HTTP responses. They have **not** been exercised against the live APIs in this build environment (no keys were available). See `docs/KNOWN_LIMITATIONS.md`.
+> **Verification status:** both adapters are tested with mocked HTTP responses. Against the live Gemini API, only the endpoint, header authentication and the invalid-key error were confirmed (a fake key returned Google's real "API key not valid" response). No successful live generation has been run yet; `npm run gemini:check` with your key is that first test. Groq has not been exercised live. See `docs/KNOWN_LIMITATIONS.md`.
 
 ## Commands
 
@@ -75,6 +95,7 @@ Free tiers have rate and daily limits that change over time. Quota and rate-limi
 | `npm run lint` | ESLint (Next.js core-web-vitals and TypeScript rules) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run check` | lint + typecheck + test + build |
+| `npm run gemini:check` | Verifies your Gemini key and model with one tiny synthetic request |
 
 ## Data and privacy
 

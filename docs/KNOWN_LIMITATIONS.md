@@ -3,7 +3,9 @@
 Stated plainly so nobody mistakes this MVP for more than it is.
 
 ## Not verified in this build
-- **Live Gemini and Groq calls were not tested.** No API keys were available in the build environment. The adapters follow the documented REST APIs and are covered by mocked-HTTP tests, but real-world JSON-mode quirks, current model ids and exact quota error bodies must be confirmed with real keys. The default model ids in `src/lib/providers/index.ts` will go stale; override them with `GEMINI_MODEL` / `GROQ_MODEL`.
+- **No successful live Gemini or Groq generation has been run.** No API keys were available in the build environment. For Gemini, only the endpoint, header auth and the invalid-key error path were confirmed live, using a deliberately fake key. Native schema enforcement (`responseJsonSchema`) is sent by default and falls back automatically to plain JSON mode if Gemini rejects our schema. Whether Gemini accepts the schema as-is is unconfirmed. Run `npm run gemini:check` with a real key as the first live test.
+- **Gemini model ids churn fast.** As of Oct 2026, public sources report that the 2.0 models are shut down and the 2.5 models are restricted for new projects. The newer 3.x ids conflict across sources. The app therefore defaults to Google's moving alias `gemini-flash-latest`, which can change behaviour when Google updates it (Google gives about 2 weeks' notice for breaking changes). Pin `GEMINI_MODEL` once you have a model you trust.
+- **Gemini free-tier privacy:** Google's terms for the unpaid tier allow submitted content to be used to improve its products. The app asks for per-analysis consent, but it cannot change Google's terms.
 - No deployment was performed.
 - Accessibility was checked for labels, focus, contrast tokens and keyboard reachability, but not with a real screen reader. Only Chromium was tested.
 
