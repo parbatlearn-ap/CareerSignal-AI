@@ -18,6 +18,41 @@ CareerSignal AI guides a professional through a deterministic workflow of **nine
 - npm 10+
 - No database server, no API key and no paid service is needed for demo mode.
 
+## Windows: set up by double-clicking (no command line needed)
+
+### Choose a folder first
+| | Option A - short local folder (recommended) | Option B - a OneDrive folder |
+|---|---|---|
+| Example | `C:\Dev\CareerSignal-AI` | `C:\Users\<you>\OneDrive - <Company>\...\CareerSignal AI` |
+| Install reliability | Good | Risky: ~23,000 dependency files (~600 MB) sync while installing, which can cause `EPERM`/`EBUSY` errors. Deep folders can exceed Windows' 260-character path limit. |
+| Privacy | Data stays on this PC | OneDrive uploads your API key (`.env.local`) and career data (`.data`) to the OneDrive account. On a work account, that is your employer's storage. |
+| When to choose | Default | Only if you accept the above. Keep exports and notes in OneDrive instead of the code. |
+
+The setup script runs in either folder and warns you if it detects OneDrive or a long path.
+
+### Steps
+1. **Install Node.js.** Go to https://nodejs.org, download the **LTS** installer and run it with the default options. On a work laptop, IT may need to do this.
+2. **Get the code.** On the GitHub repository page, click the green **Code** button → **Download ZIP**. Right-click the downloaded ZIP → **Extract All…** → choose your folder (Option A or B) → **Extract**. Open the extracted folder; it should contain `package.json` and `setup-windows.cmd`.
+3. **Run setup.** Double-click **`setup-windows.cmd`**. If Windows shows *"Windows protected your PC"*, click **More info → Run anyway**. Windows shows this for downloaded scripts; only do it for files from your own repository. A black window checks your setup and installs dependencies (several minutes), then opens **`.env.local`** in Notepad.
+4. **Edit `.env.local`** (this is the settings file you edit). For demo mode, change nothing. For Gemini, change these two lines, then **File → Save** and close Notepad:
+   ```
+   LLM_PROVIDER=gemini
+   GEMINI_API_KEY=paste-your-key-here
+   ```
+   No quotes and no spaces around `=`. Never share this file or put it in OneDrive/email/chat.
+5. **(Optional) Check Gemini.** In the project folder, click the address bar in File Explorer, type `cmd`, press Enter, then run `npm run gemini:check`.
+6. **Start the app.** Double-click **`start-windows.cmd`**. Keep the black window open; your browser opens http://localhost:3000 after about 12 seconds (refresh if it is still loading). To stop the app, press **Ctrl+C** in that window.
+
+### Windows troubleshooting
+| What you see | Likely cause | What to do |
+|---|---|---|
+| "Node.js is not installed" | Node missing, or the window was open before installing | Install Node LTS, then close and re-open the folder and double-click setup again |
+| `EPERM`, `EBUSY` or `operation not permitted` during install | OneDrive or antivirus is locking files | Pause OneDrive syncing (OneDrive icon → Pause syncing) and rerun setup, or use Option A |
+| `ENAMETOOLONG` or "path too long" | Folder path is too deep | Use Option A (a short folder such as `C:\Dev\CareerSignal-AI`) |
+| `SELF_SIGNED_CERT_IN_CHAIN`, `ECONNRESET`, `ETIMEDOUT` | A company network proxy is blocking npm | Ask IT for the npm proxy/certificate settings. Do not disable SSL checks |
+| Browser says "can't reach this page" | Server still starting | Wait 10-20 seconds and refresh |
+| Port 3000 already in use | The app is already running in another window | Close the other black window, or open http://localhost:3000 directly |
+
 ## Install and run (demo / mock mode, no API keys)
 
 ```bash
@@ -96,6 +131,7 @@ Free tiers have rate and daily limits that change over time. Quota and rate-limi
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run check` | lint + typecheck + test + build |
 | `npm run gemini:check` | Verifies your Gemini key and model with one tiny synthetic request |
+| `npm run setup` | Checks Node version and folder, creates `.env.local` from the template (never overwrites) |
 
 ## Data and privacy
 

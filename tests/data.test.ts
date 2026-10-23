@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { promises as fsp } from "node:fs";
 import { mkdtempSync, readdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { FileRepository, MemoryRepository } from "@/lib/repo";
+import { FileRepository, MemoryRepository, renameWithRetry } from "@/lib/repo";
 import { ActionSchema, newWorkspace } from "@/lib/orchestrator/actions";
 import { parseDocument, ParseError } from "@/lib/server/parse";
 import { BrandOutputSchema, LinkedInOutputSchema, PositioningOutputSchema } from "@/lib/schemas/agents";
@@ -33,6 +34,33 @@ describe("repositories: ownership, export and deletion", () => {
     expect(await repo.get("../../etc/passwd")).toBeNull();
     await repo.save(newWorkspace("o"));
     expect(readdirSync(dir).filter((f) => f.endsWith(".tmp"))).toEqual([]);
+  });
+});
+
+describe("Windows/OneDrive file locks", () => {
+  it("retries a rename blocked by a transient EPERM lock, then saves", async () => {
+    const real = fsp.rename.bind(fsp);
+    let calls = 0;
+    const spy = vi.spyOn(fsp, "rename").mockImplementation(async (a, b) => {
+      calls++;
+      if (calls < 3) throw Object.assign(new Error("locked"), { code: "EPERM" });
+      return real(a, b);
+    });
+    const repo = new FileRepository(mkdtempSync(path.join(os.tmpdir(), "cs-")));
+    const ws = newWorkspace("o");
+    await repo.save(ws);
+    spy.mockRestore();
+    expect(calls).toBe(3);
+    expect((await repo.get(ws.id))?.id).toBe(ws.id);
+  });
+
+  it("gives up after the retry limit and cleans up the temp file", async () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), "cs-"));
+    const spy = vi.spyOn(fsp, "rename").mockRejectedValue(Object.assign(new Error("locked"), { code: "EBUSY" }));
+    await fsp.writeFile(path.join(dir, "a.tmp"), "x");
+    await expect(renameWithRetry(path.join(dir, "a.tmp"), path.join(dir, "a.json"), 3)).rejects.toThrow("locked");
+    spy.mockRestore();
+    expect(readdirSync(dir)).toEqual([]);
   });
 });
 

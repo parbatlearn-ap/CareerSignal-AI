@@ -76,7 +76,7 @@ export class FileRepository implements WorkspaceRepository {
     const f = this.file(ws.id);
     const tmp = `${f}.${process.pid}.${Date.now()}.tmp`;
     await fs.writeFile(tmp, JSON.stringify(ws), { encoding: "utf8", mode: 0o600 });
-    await fs.rename(tmp, f);
+    await renameWithRetry(tmp, f);
   }
   async listByOwner(ownerId: string) {
     await this.ensure();
@@ -101,6 +101,26 @@ export class FileRepository implements WorkspaceRepository {
     let n = 0;
     for (const w of list) if (await this.delete(w.id)) n++;
     return n;
+  }
+}
+
+/**
+ * On Windows, sync clients (OneDrive) and antivirus briefly lock files, so
+ * rename fails with EPERM/EBUSY/EACCES. Retry a few times before giving up.
+ */
+export async function renameWithRetry(from: string, to: string, attempts = 6): Promise<void> {
+  for (let i = 1; ; i++) {
+    try {
+      await fs.rename(from, to);
+      return;
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code;
+      if (i >= attempts || !["EPERM", "EBUSY", "EACCES"].includes(code ?? "")) {
+        await fs.unlink(from).catch(() => undefined);
+        throw e;
+      }
+      await new Promise((r) => setTimeout(r, 50 * i));
+    }
   }
 }
 
